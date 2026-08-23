@@ -18,6 +18,16 @@
 (defun concat (&rest parts)
   (apply #'concatenate 'string parts))
 
+(defun split (s delim)
+  (let ((delim-idx (position delim s :test #'string=)))
+    (if delim-idx
+	(cons (sub-str s 0 delim-idx)
+	      (split (sub-str s (1+ delim-idx)) delim))
+	(list s))))
+
+(defun split-idx (s delim idx)
+  (nth idx (split s delim)))
+
 ;; Note:
 ;; The above are called grammar compositions, and together they form a grammar (DSL).
 ;; Every program written is some compostion of these, nothing else.
@@ -26,11 +36,13 @@
 (defun eval-prog (form s)
   (let ((op (first form)))
     (handler-bind
-	((error (lambda (c) ; MAYBE: log programs that error
+	((error (lambda (c)	      ; MAYBE: log programs that error
 		  (declare (ignore c))
 		  (invoke-restart 'return-nil))))
       (restart-case
 	  (cond ((eq 'sub-str op)
+		 (apply op s (rest form)))
+		((eq 'split-idx op)
 		 (apply op s (rest form)))
 		((eq 'literal op)
 		 (funcall op (second form)))
@@ -55,6 +67,12 @@
   (unless (zerop (length c))
     (cons `(literal ,(sub-str c 0 1))
 	  (all-literal-programs (sub-str c 1)))))
+
+(defun all-split-programs (s delim)
+  (let ((result (list)))
+    (dotimes (i (length (split s delim)) result)
+      (push `(split-idx ,delim ,i)
+	    result))))
 
 (defun all-concat-programs (p)
   (let ((result (list)))
