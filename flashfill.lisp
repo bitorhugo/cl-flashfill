@@ -17,21 +17,29 @@
 
 (defun eval-prog (form s)
   (let ((op (first form)))
-    (cond ((eq 'sub-str op)
-	   (apply op s (rest form)))
-	  ((eq 'literal op)
-	   (funcall op (second form)))
-	  ((eq 'concat op)
-	   (apply op (mapcar (lambda (sub-form) (eval-prog sub-form s))
-			     (rest form))))))) ; <-- this is called structural recursion over a tree
+    (handler-case
+	(restart-case
+	    (cond ((eq 'sub-str op)
+		   (apply op s (rest form)))
+		  ((eq 'literal op)
+		   (funcall op (second form)))
+		  ((eq 'concat op)
+		   (apply op (mapcar (lambda (sub-form) (eval-prog sub-form s))
+				     (rest form))))) ; <-- this is called structural recursion over a tree
 					; a function calling itself on each child
+	  (return-nil () :report "Return nil" (values)))
+      (error (c) ; MAYBE: log programs that error
+	(declare (ignore c))
+	(invoke-restart 'return-nil)))))
+
 
 (defun all-sub-str-programs (n)
   (let ((result (list)))
-    (dotimes (i (1+ n) result)
+    (dotimes (i (1+ n) (reverse result))
       (dotimes (j (- n i))
 	(push `(sub-str ,i ,(- n j))
-	      result)))))
+	      result))
+      (push `(sub-str ,i) result))))
 
 (defun all-literal-programs (c)
   (unless (zerop (length c))
@@ -84,7 +92,7 @@
 
 (defun filter-correct (list-of-programs input-output-pairs)
   (remove-if-not (lambda (program)
-		   (some (lambda (pair)
+		   (every (lambda (pair)
 			    (equal (eval-prog program (car pair))
 				   (cdr pair)))
 			  input-output-pairs))
