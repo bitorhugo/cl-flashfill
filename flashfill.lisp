@@ -3,7 +3,15 @@
 ;; Grammar
 
 (defun sub-str (s start &optional end)
-  (subseq s start end))
+  (let ((len (length s)))
+    (subseq s
+	    (if (minusp start)
+		(+ len start)
+		start)
+	    (when end
+	      (if (minusp end)
+		  (+ len end)
+		  end)))))
 
 (defun literal (c) c)
 
@@ -117,6 +125,6 @@
 
 (defun synthesize (examples)
   (let* ((seed (car (first examples)))
-	(seed-output-example (cdr (first examples)))
-	(search-space (all-depth-3-programs seed seed-output-example)))
+	 (seed-output-example (cdr (first examples)))
+	 (search-space (all-depth-3-programs seed seed-output-example)))
     (filter-correct search-space examples)))
