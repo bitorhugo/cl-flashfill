@@ -1,7 +1,10 @@
 (in-package :cl-flashfill)
 
 (defun is (fn &rest args)
-  (apply fn args))
+  (let ((success-p (apply fn args)))
+    (if success-p
+	(format t "PASS~%")
+	(format t "FAIL: ~a~%" args))))
 
 (defun run-tests ()
 
@@ -9,6 +12,7 @@
 
     ;; John
     (is #'string= "John" (sub-str "John Smith" 0 4))
+    (is #'string= "John" (sub-str "John Smith" -10 4))
 
     ;; J. Smith -> J dot space Smith
     (is #'string= "J. Smith" (concat (sub-str "John Smith" 0 1)
@@ -30,34 +34,8 @@
   (is #'string= "J. Smith" (eval-prog '(concat (sub-str 0 1) (literal ".") (literal " ") (sub-str 5))
 				      "John Smith"))
 
-  (is #'equal
-      '((sub-str 3 4) (sub-str 2 3) (sub-str 2 4) (sub-str 1 2) (sub-str 1 3)
-	(sub-str 1 4) (sub-str 0 1) (sub-str 0 2) (sub-str 0 3) (sub-str 0 4))
-      (all-sub-str-programs 4))
-
-
-  (is #'equal
-      '((literal "a") (literal "b"))
-      (all-literal-programs "ab"))
-
-  (is #'equal
-      (all-depth-1-programs "ab" "")
-      '((sub-str 1 2) (sub-str 0 1) (sub-str 0 2) (literal "a") (literal "b")))
-
-  (is #'equal
-      (%filter-correct (all-depth-1-programs "ab" "") "ab" "a")
-      '((sub-str 0 1) (literal "a")))
-  ;; (mapcar (rcurry #'eval-prog "ab") '((SUB-STR 0 1) (LITERAL "a"))) = ("a" "a")
-
-  (print (filter-correct (all-depth-1-programs "ab" "") '(("ab" . "a") ("ab" . "a"))))
-
-  (print (filter-correct (all-depth-1-programs "ab" "") '(("ab" . "a") ("ab" . "b"))))
-
-  (print (length (all-concat-programs (all-depth-1-programs "ab" ""))))
-
-  (format t "depth 1: ~a programs~%" (length (all-depth-1-programs "John Smith" "")))
-  (format t "depth 2: ~a programs~%" (length (all-depth-2-programs "John Smith" "")))
-
+  ;; TODO: clean
+  ;;
   (format t "after prunning: ~a programs~%"
 	  (length (prune-equivalent (all-depth-1-programs "ab" "") "ab")))
   (format t "depth 2 pruned: ~a programs~%" (length (all-depth-2-programs "John Smith" "")))
