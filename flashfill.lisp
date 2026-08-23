@@ -114,3 +114,9 @@
 			      programs)
 		      #'< :key #'cdr)))
     (car (first sorted))))
+
+(defun synthesize (examples)
+  (let* ((seed (car (first examples)))
+	(seed-output-example (cdr (first examples)))
+	(search-space (all-depth-3-programs seed seed-output-example)))
+    (filter-correct search-space examples)))
