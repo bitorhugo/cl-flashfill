@@ -1,5 +1,5 @@
 # cl-flashfill
-### Vitor Santos <vhsoo@proton.me>_
+### Vitor Santos <vhsoo at proton dot me>
 
 This is a project to do ... something.
 
