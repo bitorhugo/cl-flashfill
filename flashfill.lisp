@@ -25,29 +25,31 @@
 
 (defun eval-prog (form s)
   (let ((op (first form)))
-    (handler-case
-	(restart-case
-	    (cond ((eq 'sub-str op)
-		   (apply op s (rest form)))
-		  ((eq 'literal op)
-		   (funcall op (second form)))
-		  ((eq 'concat op)
-		   (apply op (mapcar (lambda (sub-form) (eval-prog sub-form s))
-				     (rest form))))) ; <-- this is called structural recursion over a tree
+    (handler-bind
+	((error (lambda (c) ; MAYBE: log programs that error
+		  (declare (ignore c))
+		  (invoke-restart 'return-nil))))
+      (restart-case
+	  (cond ((eq 'sub-str op)
+		 (apply op s (rest form)))
+		((eq 'literal op)
+		 (funcall op (second form)))
+		((eq 'concat op)
+		 (apply op (mapcar (lambda (sub-form) (eval-prog sub-form s))
+				   (rest form))))) ; <-- this is called structural recursion over a tree
 					; a function calling itself on each child
-	  (return-nil () :report "Return nil" (values)))
-      (error (c) ; MAYBE: log programs that error
-	(declare (ignore c))
-	(invoke-restart 'return-nil)))))
+	(return-nil () :report "Return nil" (values))))))
 
 (defun all-sub-str-programs (n)
   (let ((result (list)))
-    (do ((i (- n) (1+ i)))
-	((>= i n) result)
-      (do ((j (1+ i) (1+ j)))
-	  ((>= j n))
-	(push `(sub-str ,i ,j) result))
-      (push `(sub-str ,i) result))))
+    (do ((start (- n) (1+ start)))
+	((>= start n) result)
+      (do ((end (- n) (1+ end)))
+	  ((= end n))
+	(unless (>= (mod start n)
+		    (mod end n)) ; empty string and out-of-bounds indexes
+	  (push `(sub-str ,start ,end) result)))
+      (push `(sub-str ,start) result))))
 
 (defun all-literal-programs (c)
   (unless (zerop (length c))
@@ -65,33 +67,46 @@
   (let ((output->programs (make-hash-table :test 'equal)))
     (dolist (prog list-of-programs)
       (let ((output (eval-prog prog s)))
-	(setf (gethash output output->programs)
-	      prog)))
+	(when output
+	  (setf (gethash output output->programs)
+		prog))))
     (hash-table-values output->programs)))
 
-(defun concat-and-prune (p s)
+(defun concat-and-prune (p s target)
   (let ((output->programs (make-hash-table :test 'equal)))
     (dotimes (i (length p))
       (dotimes (j (length p))
 	(let* ((program `(concat ,(nth i p) ,(nth j p)))
 	       (output (eval-prog program s)))
-	  (setf (gethash output output->programs)
-		program))))
+	  (when (and output
+		     (relevant-p output target))
+	    (setf (gethash output output->programs)
+		  program)))))
     (hash-table-values output->programs)))
 
+(defun relevant-p (p-out target-out)
+  (search p-out target-out :test #'string=))
+
 (defun all-depth-1-programs (s out)
-  (append (all-sub-str-programs (length s))
-	  (all-literal-programs s)
-	  (all-literal-programs out)))
+  (nconc (all-sub-str-programs (length s))
+	 (all-literal-programs s)
+	 (all-literal-programs out)
+	 (all-split-programs s " ")))
 
 (defun all-depth-2-programs (s out)
   (let ((d1p (all-depth-1-programs s out)))
-    (prune-equivalent (append d1p (all-concat-programs d1p))
+    (prune-equivalent (nconc d1p (all-concat-programs d1p))
 		      s)))
 
 (defun all-depth-3-programs (s out)
   (let ((d2p (all-depth-2-programs s out)))
-    (append d2p (concat-and-prune d2p s))))
+    (nconc d2p (concat-and-prune d2p s out))))
+
+(defun all-depth-n-programs (s out n)
+  (do ((i 3 (1+ i))
+       (dxp (all-depth-2-programs s out)
+	    (nconc dxp (concat-and-prune dxp s out))))
+      ((> i n) dxp)))
 
 (defun %filter-correct (list-of-programs input expected-output)
   (remove-if-not (lambda (program) (equal (eval-prog program input)
@@ -123,8 +138,8 @@
 		      #'< :key #'cdr)))
     (car (first sorted))))
 
-(defun synthesize (examples)
+(defun synthesize (examples &optional (rounds 5))
   (let* ((seed (car (first examples)))
 	 (seed-output-example (cdr (first examples)))
-	 (search-space (all-depth-3-programs seed seed-output-example)))
+	 (search-space (all-depth-n-programs seed seed-output-example rounds)))
     (filter-correct search-space examples)))

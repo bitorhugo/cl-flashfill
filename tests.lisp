@@ -33,8 +33,7 @@
 					(sub-str 5))
 				      "John Smith"))
 
-  ;; n=7 i.e. [-3, 3], k=2 i.e. start ^ end
-  (is #'= (length (all-sub-str-programs 3)) (std-combination-size 7 2))
+  (is #'= (length (all-sub-str-programs 3)) 18)
   
   ;; TODO: clean
   ;;
