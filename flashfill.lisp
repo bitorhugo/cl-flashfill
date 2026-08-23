@@ -40,13 +40,13 @@
 	(declare (ignore c))
 	(invoke-restart 'return-nil)))))
 
-
 (defun all-sub-str-programs (n)
   (let ((result (list)))
-    (dotimes (i (1+ n) (reverse result))
-      (dotimes (j (- n i))
-	(push `(sub-str ,i ,(- n j))
-	      result))
+    (do ((i (- n) (1+ i)))
+	((>= i n) result)
+      (do ((j (1+ i) (1+ j)))
+	  ((>= j n))
+	(push `(sub-str ,i ,j) result))
       (push `(sub-str ,i) result))))
 
 (defun all-literal-programs (c)

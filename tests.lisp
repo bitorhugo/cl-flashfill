@@ -8,32 +8,34 @@
 
 (defun run-tests ()
 
-  (let ((name "John Smith"))
+  (is #'string= "John" (sub-str "John Smith" 0 4))
+  (is #'string= "John" (sub-str "John Smith" -10 4))
 
-    ;; John
-    (is #'string= "John" (sub-str "John Smith" 0 4))
-    (is #'string= "John" (sub-str "John Smith" -10 4))
-
-    ;; J. Smith -> J dot space Smith
-    (is #'string= "J. Smith" (concat (sub-str "John Smith" 0 1)
-				     (literal ".")
-				     (literal " ") ; we could use sub-str starting from 4 as well
-				     (sub-str "John Smith" 5))))
-  
-  (let ((name "Jane Doe"))
-    (is #'string= "J. Doe" (concat (sub-str name 0 1)
+  ;; J. Smith -> J dot space Smith
+  (is #'string= "J. Smith" (concat (sub-str "John Smith" 0 1)
 				   (literal ".")
-				   (literal " ")
-				   (sub-str name 5))))
+				   (literal " ") ; we could use sub-str starting from 4
+				   (sub-str "John Smith" 5)))
+  
+  (is #'string= "J. Doe" (concat (sub-str "Jane Doe" 0 1)
+				 (literal ".")
+				 (literal " ")
+				 (sub-str "Jane Doe" 5)))
 
   (is #'string= "John" (eval-prog '(sub-str 0 4) "John Smith"))
 
   (is #'string= "!" (eval-prog '(literal "!")
 			       "John Smith"))
 
-  (is #'string= "J. Smith" (eval-prog '(concat (sub-str 0 1) (literal ".") (literal " ") (sub-str 5))
+  (is #'string= "J. Smith" (eval-prog '(concat (sub-str 0 1)
+					(literal ".")
+					(literal " ")
+					(sub-str 5))
 				      "John Smith"))
 
+  ;; n=7 i.e. [-3, 3], k=2 i.e. start ^ end
+  (is #'= (length (all-sub-str-programs 3)) (std-combination-size 7 2))
+  
   ;; TODO: clean
   ;;
   (format t "after prunning: ~a programs~%"

@@ -37,3 +37,14 @@
   (let ((result (list)))
     (map-hash-values (lambda (v) (push v result)) hash-table)
     (values result)))
+
+(defun factorial (n)
+  (if (or (zerop n)
+	  (= n 1))
+      1
+      (* n (factorial (1- n)))))
+
+(defun std-combination-size (n k)
+  (/ (factorial n)
+     (* (factorial k)
+	(factorial (- n k)))))
