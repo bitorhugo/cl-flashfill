@@ -84,11 +84,28 @@
 
 (defun filter-correct (list-of-programs input-output-pairs)
   (remove-if-not (lambda (program)
-		   (every (lambda (pair)
+		   (some (lambda (pair)
 			    (equal (eval-prog program (car pair))
 				   (cdr pair)))
 			  input-output-pairs))
 		 list-of-programs))
+
+(defun program-size (program)
+  (cond ((or (eql (first program) 'literal)
+	     (eql (first program) 'sub-str))
+	 1)
+	((eql (first program) 'concat)
+	 (+ 1
+	    (program-size (second program))
+	    (program-size (third program))))
+	(t 0)))
+
+(defun smallest-program (programs)
+  (let ((sorted (sort (mapcar (lambda (program)
+				(cons program (program-size program)))
+			      programs)
+		      #'< :key #'cdr)))
+    (car (first sorted))))
 
 
 ;; tests
@@ -144,4 +161,6 @@
   (print (filter-correct (all-depth-3-programs "Jane Doe" "J. Doe") '(("Jane Doe" . "J. Doe"))))
   (print (filter-correct (all-depth-3-programs "V Hugo" "V. Hugo") '(("V Hugo" . "V. Hugo"))))
 
-  (print (program-size '(concat (literal "J") (concat (literal ".") (sub-str 4 8))))) )
+  (print (program-size '(concat (literal "J") (concat (literal ".") (sub-str 4 8)))))
+
+  (print (smallest-program (filter-correct (all-depth-3-programs "Jane Doe" "J. Doe") '(("Jane Doe" . "J. Doe"))))))
