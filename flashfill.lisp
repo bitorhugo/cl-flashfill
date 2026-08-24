@@ -3,6 +3,8 @@
 ;; Grammar
 
 (defun sub-str (s start &optional end)
+  "Returns a sub-string of S between START and optionally END;
+Accepts negative values for START or END."
   (let ((len (length s)))
     (subseq s
 	    (if (minusp start)
@@ -13,12 +15,16 @@
 		  (+ len end)
 		  end)))))
 
-(defun literal (c) c)
+(defun literal (l)
+  "Returns the literal L."
+  l)
 
 (defun concat (&rest parts)
+  "Returns the concatenation of PARTS."
   (apply #'concatenate 'string parts))
 
 (defun split (s delim)
+  "Returns a LIST of sub-strings of S delimited by DELIM."
   (let ((delim-idx (position delim s :test #'string=)))
     (if delim-idx
 	(cons (sub-str s 0 delim-idx)
@@ -26,6 +32,7 @@
 	(list s))))
 
 (defun split-idx (s delim idx)
+  "Wrapper for SPLIT that returns the NTH object."
   (nth idx (split s delim)))
 
 ;; Note:
@@ -34,6 +41,7 @@
 ;; This restriction is what makes search over programs tracktable (easy to follow) later.
 
 (defun eval-prog (form s)
+  "Evaluates FORM with S and returrns its value."
   (let ((op (first form)))
     (handler-bind
 	((error (lambda (c)	      ; MAYBE: log programs that error
@@ -47,12 +55,14 @@
 		((eq 'literal op)
 		 (funcall op (second form)))
 		((eq 'concat op)
+		 ;; structural recursion over a tree
+		 ;; a function calling itself on each child
 		 (apply op (mapcar (lambda (sub-form) (eval-prog sub-form s))
-				   (rest form))))) ; <-- this is called structural recursion over a tree
-					; a function calling itself on each child
+				   (rest form)))))
 	(return-nil () :report "Return nil" (values))))))
 
 (defun all-sub-str-programs (n)
+  "Returns all combinations of SUB-STR programs."
   (let ((result (list)))
     (do ((start (- n) (1+ start)))
 	((>= start n) result)
@@ -63,31 +73,34 @@
 	  (push `(sub-str ,start ,end) result)))
       (push `(sub-str ,start) result))))
 
-(defun all-literal-programs (c)
-  (unless (zerop (length c))
-    (cons `(literal ,(sub-str c 0 1))
-	  (all-literal-programs (sub-str c 1)))))
+(defun all-literal-programs (l)
+  "Returns all combinations of LITERAL programs."
+  (unless (zerop (length l))
+    (cons `(literal ,(sub-str l 0 1))
+	  (all-literal-programs (sub-str l 1)))))
 
 (defun all-split-programs (s delim)
+  "Returns all combinations of SPLIT-IDX programs."
   (let ((result (list)))
     (dotimes (i (length (split s delim)) result)
       (push `(split-idx ,delim ,i)
 	    result))))
 
 (defun all-concat-programs (p)
+  "Returns all combinations of CONCAT programs."
   (let ((result (list)))
     (dotimes (i (length p) result)
       (dotimes (j (length p))
 	(push `(concat ,(nth i p) ,(nth j p))
 	      result)))))
 
-(defun prune-equivalent (list-of-programs s)
+(defun prune-equivalent (list-of-programs inputs)
+  "Filters LIST-OF-PROGRAMS using observational-equivalence on INPUTS."
   (let ((output->programs (make-hash-table :test 'equal)))
     (dolist (prog list-of-programs)
-      (let ((output (eval-prog prog s)))
-	(when output
-	  (setf (gethash output output->programs)
-		prog))))
+      (setf (gethash (mapcar (curry #'eval-prog prog) inputs)
+		     output->programs)
+	    prog))
     (hash-table-values output->programs)))
 
 (defun concat-and-prune (p s target)
@@ -112,7 +125,7 @@
 	 (all-split-programs s " ")))
 
 (defun all-depth-2-programs (s out)
-  (let ((d1p (all-depth-1-programs s out)))
+  (let ((d1p (all-depth-1-programs (list s) out)))
     (prune-equivalent (nconc d1p (all-concat-programs d1p))
 		      s)))
 
