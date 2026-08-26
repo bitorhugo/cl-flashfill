@@ -1,19 +1,18 @@
 (in-package :cl-flashfill)
 
-;; Grammar
 
-(defun sub-str (s start &optional end)
-  "Returns a sub-string of S between START and optionally END;
-Accepts negative values for START or END."
-  (let ((len (length s)))
-    (subseq s
-	    (if (minusp start)
-		(+ len start)
-		start)
-	    (when end
-	      (if (minusp end)
-		  (+ len end)
-		  end)))))
+;; Grammar
+;;
+
+(defun sub-str (s start end &key from-end)
+  "Returns a sub-string of S between START and END;"
+  (if from-end
+      (let ((len (length s)))
+	(subseq s
+		(cond ((zerop end) 0)
+		      (t (- len end)))
+		(- len start)))
+      (subseq s start end)))
 
 (defun literal (l)
   "Returns the literal L."
@@ -64,14 +63,14 @@ Accepts negative values for START or END."
 (defun all-sub-str-programs (n)
   "Returns all combinations of SUB-STR programs."
   (let ((result (list)))
-    (do ((start (- n) (1+ start)))
-	((>= start n) result)
-      (do ((end (- n) (1+ end)))
-	  ((= end n))
-	(unless (>= (mod start n)
-		    (mod end n)) ; empty string and out-of-bounds indexes
-	  (push `(sub-str ,start ,end) result)))
-      (push `(sub-str ,start) result))))
+    (do ((start 0 (1+ start)))
+	((> start (1- n)) (reverse result))
+      (do ((end (1+ start) (1+ end)))
+	  ((> end n))
+	(push `(sub-str ,start ,end)
+	      result)
+	(push `(sub-str ,start ,end :from-end t)
+	      result)))))
 
 (defun all-literal-programs (l)
   "Returns all combinations of LITERAL programs."
