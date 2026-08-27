@@ -27,7 +27,7 @@
   (let ((delim-idx (position delim s :test #'string=)))
     (if delim-idx
 	(cons (sub-str s 0 delim-idx)
-	      (split (sub-str s (1+ delim-idx)) delim))
+	      (split (sub-str s (1+ delim-idx) (length s)) delim))
 	(list s))))
 
 (defun split-idx (s delim idx)
@@ -64,7 +64,7 @@
   "Returns all combinations of SUB-STR programs."
   (let ((result (list)))
     (do ((start 0 (1+ start)))
-	((> start (1- n)) (reverse result))
+	((> start (1- n)) result)
       (do ((end (1+ start) (1+ end)))
 	  ((> end n))
 	(push `(sub-str ,start ,end)
@@ -72,11 +72,18 @@
 	(push `(sub-str ,start ,end :from-end t)
 	      result)))))
 
-(defun all-literal-programs (l)
-  "Returns all combinations of LITERAL programs."
-  (unless (zerop (length l))
-    (cons `(literal ,(sub-str l 0 1))
-	  (all-literal-programs (sub-str l 1)))))
+(defun %all-literal-programs (s &optional acc)
+  "Helper function of ALL-LITERAL-PROGRAMS."
+  (let ((len (length s)))
+    (if (zerop len)
+	acc
+	(%all-literal-programs (sub-str s 1 len)
+			       (cons `(literal ,(sub-str s 0 1))
+				     acc)))))
+
+(defun all-literal-programs (s)
+  "Returns all combinations of LITERAL programs of S."
+  (%all-literal-programs s))
 
 (defun all-split-programs (s delim)
   "Returns all combinations of SPLIT-IDX programs."
@@ -93,63 +100,58 @@
 	(push `(concat ,(nth i p) ,(nth j p))
 	      result)))))
 
-(defun prune-equivalent (list-of-programs inputs)
-  "Filters LIST-OF-PROGRAMS using observational-equivalence on INPUTS."
-  (let ((output->programs (make-hash-table :test 'equal)))
-    (dolist (prog list-of-programs)
-      (setf (gethash (mapcar (curry #'eval-prog prog) inputs)
-		     output->programs)
-	    prog))
-    (hash-table-values output->programs)))
+(defun prune-equivalent (programs examples)
+  "Filters PROGRAMS using observational equivalence across EXAMPLES."
+  (loop with sig->program = (make-hash-table :test 'equal)
+        for program in programs
+        for signature = (mapcar (curry #'eval-prog program) examples)
+        do (setf (gethash signature sig->program) program)
+        finally (return (hash-table-values sig->program))))
 
-(defun concat-and-prune (p s target)
-  (let ((output->programs (make-hash-table :test 'equal)))
-    (dotimes (i (length p))
-      (dotimes (j (length p))
-	(let* ((program `(concat ,(nth i p) ,(nth j p)))
-	       (output (eval-prog program s)))
-	  (when (and output
-		     (relevant-p output target))
-	    (setf (gethash output output->programs)
-		  program)))))
-    (hash-table-values output->programs)))
+(defun concat-and-prune (p examples)
+  (loop with sig->program = (make-hash-table :test 'equal)
+        for a in p
+        do (loop for b in p
+                 for program = `(concat ,a ,b)
+                 for signature = (mapcar (curry #'eval-prog program) examples)
+		 do (setf (gethash signature sig->program) program))
+        finally (return (hash-table-values sig->program))))
 
-(defun relevant-p (p-out target-out)
-  (search p-out target-out :test #'string=))
+(defun all-depth-1-programs (examples)
+  (loop with string-len = (reduce #'max examples
+				  :key (lambda (x)
+					 (max (length (car x))
+					      (length (cdr x))))
+				  :initial-value 0)
+	for (input . output) in examples
+	nconc (nconc (all-literal-programs input)
+		     (all-literal-programs output)		     
+		     (all-split-programs input " ")
+		     (all-split-programs output " "))
+	  into programs
+	finally (return (nconc programs
+			       (all-sub-str-programs string-len)))))
 
-(defun all-depth-1-programs (s out)
-  (nconc (all-sub-str-programs (length s))
-	 (all-literal-programs s)
-	 (all-literal-programs out)
-	 (all-split-programs s " ")))
+(defun all-depth-2-programs (examples)
+  (let ((d1 (all-depth-1-programs examples)))
+    (prune-equivalent (all-concat-programs d1)
+		      (mapcar #'car examples))))
 
-(defun all-depth-2-programs (s out)
-  (let ((d1p (all-depth-1-programs (list s) out)))
-    (prune-equivalent (nconc d1p (all-concat-programs d1p))
-		      s)))
+(defun all-depth-3-programs (examples)
+  (let ((d2 (all-depth-2-programs examples)))
+    (nconc d2 (concat-and-prune d2 (mapcar #'car examples)))))
 
-(defun all-depth-3-programs (s out)
-  (let ((d2p (all-depth-2-programs s out)))
-    (nconc d2p (concat-and-prune d2p s out))))
+(defun all-depth-4-programs (examples)
+  (let ((d3 (all-depth-3-programs examples)))
+    (nconc d3 (concat-and-prune d3 (mapcar #'car examples)))))
 
-(defun all-depth-n-programs (s out n)
-  (do ((i 3 (1+ i))
-       (dxp (all-depth-2-programs s out)
-	    (nconc dxp (concat-and-prune dxp s out))))
-      ((> i n) dxp)))
 
-(defun %filter-correct (list-of-programs input expected-output)
-  (remove-if-not (lambda (program) (equal (eval-prog program input)
-					  expected-output))
-		 list-of-programs))
-
-(defun filter-correct (list-of-programs input-output-pairs)
-  (remove-if-not (lambda (program)
-		   (every (lambda (pair)
-			    (equal (eval-prog program (car pair))
-				   (cdr pair)))
-			  input-output-pairs))
-		 list-of-programs))
+(defun filter-correct (programs examples)
+  (loop for program in programs
+	nconc (loop for (input . output) in examples
+		    for res = (eval-prog program input)
+		    when (equal res output)
+		      collect program)))
 
 (defun program-size (program)
   (cond ((or (eql (first program) 'literal)
@@ -168,8 +170,6 @@
 		      #'< :key #'cdr)))
     (car (first sorted))))
 
-(defun synthesize (examples &optional (rounds 5))
-  (let* ((seed (car (first examples)))
-	 (seed-output-example (cdr (first examples)))
-	 (search-space (all-depth-n-programs seed seed-output-example rounds)))
-    (filter-correct search-space examples)))
+(defun synthesize (examples)
+  (let ((search-space (all-depth-3-programs examples)))
+    (smallest-program (filter-correct search-space examples))))
