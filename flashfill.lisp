@@ -40,7 +40,7 @@
 ;; This restriction is what makes search over programs tracktable (easy to follow) later.
 
 (defun eval-prog (form s)
-  "Evaluates FORM with S and returrns its value."
+  "Evaluates FORM with S and returns its value."
   (let ((op (first form)))
     (handler-bind
 	((error (lambda (c)	      ; MAYBE: log programs that error
@@ -102,11 +102,11 @@
 
 (defun prune-equivalent (programs examples)
   "Filters PROGRAMS using observational equivalence across EXAMPLES."
-  (loop with sig->program = (make-hash-table :test 'equal)
+  (loop with evald->program = (make-hash-table :test 'equal)
         for program in programs
-        for signature = (mapcar (curry #'eval-prog program) examples)
-        do (setf (gethash signature sig->program) program)
-        finally (return (hash-table-values sig->program))))
+        for evald = (mapcar (curry #'eval-prog program) examples)
+        do (setf (gethash evald evald->program) program)
+        finally (return (hash-table-values evald->program))))
 
 (defun concat-and-prune (p examples)
   (loop with sig->program = (make-hash-table :test 'equal)
@@ -125,7 +125,7 @@
 				  :initial-value 0)
 	for (input . output) in examples
 	nconc (nconc (all-literal-programs input)
-		     (all-literal-programs output)		     
+		     (all-literal-programs output)
 		     (all-split-programs input " ")
 		     (all-split-programs output " "))
 	  into programs
@@ -134,7 +134,8 @@
 
 (defun all-depth-2-programs (examples)
   (let ((d1 (all-depth-1-programs examples)))
-    (prune-equivalent (all-concat-programs d1)
+    (prune-equivalent (nconc (all-concat-programs d1)
+			     d1)
 		      (mapcar #'car examples))))
 
 (defun all-depth-3-programs (examples)
@@ -145,31 +146,35 @@
   (let ((d3 (all-depth-3-programs examples)))
     (nconc d3 (concat-and-prune d3 (mapcar #'car examples)))))
 
+(defun all-depth-n-programs (n examples)
+  (let ((inputs (mapcar #'car examples)))
+    (loop with dn = (all-depth-2-programs examples)
+	  repeat (- n 2)
+	  do (setf dn (nconc dn (concat-and-prune dn inputs)))
+	  finally (return dn))))
 
 (defun filter-correct (programs examples)
   (loop for program in programs
-	nconc (loop for (input . output) in examples
-		    for res = (eval-prog program input)
-		    when (equal res output)
-		      collect program)))
+	when (every (lambda (ex)
+		      (equal (eval-prog program (car ex))
+			     (cdr ex)))
+		    examples)
+	  collect program))
 
 (defun program-size (program)
-  (cond ((or (eql (first program) 'literal)
-	     (eql (first program) 'sub-str))
-	 1)
-	((eql (first program) 'concat)
+  (cond ((eql (first program) 'concat)
 	 (+ 1
 	    (program-size (second program))
 	    (program-size (third program))))
-	(t 0)))
+	(t 1)))
+
+(defun rank (programs &key (by #'identity))
+  (sorted programs #'< :key by))
 
 (defun smallest-program (programs)
-  (let ((sorted (sort (mapcar (lambda (program)
-				(cons program (program-size program)))
-			      programs)
-		      #'< :key #'cdr)))
-    (car (first sorted))))
+  "Follows Occam's razor criteria, where we prefer the smallest possible set."
+  (first (rank programs :by #'program-size)))
 
-(defun synthesize (examples)
-  (let ((search-space (all-depth-3-programs examples)))
+(defun synthesize (examples &key (depth 3))
+  (let ((search-space (all-depth-n-programs depth examples)))
     (smallest-program (filter-correct search-space examples))))
