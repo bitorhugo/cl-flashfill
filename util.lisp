@@ -48,3 +48,7 @@
   (/ (factorial n)
      (* (factorial k)
 	(factorial (- n k)))))
+
+(defun sorted (sequence predicate &key key)
+  (let ((clone (copy-seq sequence)))
+    (sort clone predicate :key key)))
