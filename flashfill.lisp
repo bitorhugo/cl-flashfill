@@ -131,20 +131,26 @@
 	   (return (hash-table-values sig->program))))
 
 (defun all-depth-1-programs (examples)
-  (loop with string-len = (reduce #'max examples
-				  :key (lambda (x)
-					 (max (length (car x))
-					      (length (cdr x))))
-				  :initial-value 0)
-	for (input . output) in examples
-	nconc (nconc (all-literal-programs input)
-		     (all-literal-programs output)
-		     (all-split-programs input " ")
-		     (all-split-programs output " "))
-	  into programs
-	finally
-	   (return (nconc programs
-			  (all-sub-str-programs string-len)))))
+  (let ((seen (make-hash-table :test 'equal :size 500))
+	(max-len (reduce #'max examples :key (lambda (x)
+					       (max (length (car x))
+						    (length (cdr x))))
+					:initial-value 0)))
+    (flet ((add-all (programs)
+	     (dolist (p programs)
+	       (setf (gethash p seen) t))))
+      (loop for (input . output) in examples
+	    do (add-all (all-literal-programs input))
+	       (add-all (all-literal-programs output))
+	       (add-all (all-split-programs input " "))
+	       (add-all (all-split-programs output " ")))
+      ;; we need to only take into consideration the longest
+      ;;
+      (add-all (all-sub-str-programs max-len))
+      ;; return unique keys
+      ;;
+      (loop for p being the hash-keys of seen
+	    collect p))))
 
 (defun all-depth-2-programs (examples)
   (let* ((d1 (all-depth-1-programs examples))
@@ -191,6 +197,7 @@
 (defun smallest-program (programs)
   "Follows Occam's razor criteria, where we prefer the smallest possible set."
   (first (nrank programs :by #'program-size)))
+
 
 (defun synthesize (examples &key (depth 3))
   (let ((search-space (all-depth-n-programs depth examples)))
