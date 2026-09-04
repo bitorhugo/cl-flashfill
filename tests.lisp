@@ -41,13 +41,15 @@
 				      "John Smith")))
 
 (defun run-search-tests ()
-  (is #'= (length (all-sub-str-programs 3)) 12)
-
   (is #'<
       (length (prune-equivalent (all-depth-1-programs '(("ab" . "")))
 				'(("ab" . ""))))
       (length (all-depth-1-programs '(("ab" . "")))))
-  )
+  (is #'equal
+      (filter-correct (list '(literal "w")
+			    '(concat (sub-str 0 1) (literal ".")))
+		      '(("Jane Doe" . "J.")))
+      '((concat (sub-str 0 1) (literal ".")))))
 
 (defun run-ranking-tests ()
   ;; program size
@@ -56,7 +58,7 @@
   (is #'= (program-size '(sub-str "Jane" 0 0)) 1)
   (is #'= (program-size '(split "Doe" "o")) 1)
   (is #'= (program-size '(split-idx "Jane Doe" " " 0)) 1)
-  (is #'= (program-size '(concat (literal "J" (literal ".")))) 3)
+  (is #'= (program-size '(concat (literal "J") (literal "."))) 3)
   ;; rank
   ;;
   (is #'equal
@@ -75,7 +77,21 @@
 			  (concat (concat (literal "d") (literal "f")) (literal "."))))
       '(concat (literal "j") (literal "."))))
 
+(defun run-enumeration-tests ()
+  (is #'equal
+      (all-literal-programs "Jane")
+      '((literal "e") (literal "n") (literal "a") (literal "J")))
+
+  (is #'= (length (all-sub-str-programs 10)) (* 10 11))
+  (is #'equal
+      (all-split-programs "a b c" " ")
+      '((split-idx " " 2) (split-idx " " 1) (split-idx " " 0)))
+  (is #'= 4 (length (all-concat-programs '((literal "a")
+					   (literal "b"))))))
+
 (defun run-tests ()
   (run-grammar-tests)
   (run-eval-tests)
-  (run-search-tests))
+  (run-search-tests)
+  (run-ranking-tests)
+  (run-enumeration-tests))
