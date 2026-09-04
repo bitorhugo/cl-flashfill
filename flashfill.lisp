@@ -159,14 +159,6 @@
     (prune-equivalent ranked
 		      (mapcar #'car examples))))
 
-#+n(defun all-depth-3-programs (examples)
-     (let ((d2 (all-depth-2-programs examples)))
-       (nconc d2 (concat-and-prune d2 (mapcar #'car examples)))))
-
-#+n(defun all-depth-4-programs (examples)
-     (let ((d3 (all-depth-3-programs examples)))
-       (nconc d3 (concat-and-prune d3 (mapcar #'car examples)))))
-
 (defun all-depth-n-programs (n examples)
   (let ((input-examples (mapcar #'car examples)))
     (loop with dn = (all-depth-2-programs examples)
