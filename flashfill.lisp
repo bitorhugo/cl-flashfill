@@ -41,12 +41,12 @@
 
 (defun eval-prog (form s)
   "Evaluates FORM with S and returns its value."
-  (let ((op (first form)))
-    (handler-bind
-	((error (lambda (c)	      ; MAYBE: log programs that error
-		  (declare (ignore c))
-		  (invoke-restart 'return-nil))))
-      (restart-case
+  (handler-bind
+      ((error (lambda (c)	      ; MAYBE: log programs that error
+		(declare (ignore c))
+		(invoke-restart 'return-nil))))
+    (restart-case
+	(let ((op (first form)))
 	  (cond ((eq 'sub-str op)
 		 (apply op s (rest form)))
 		((eq 'split-idx op)
@@ -57,8 +57,8 @@
 		 ;; structural recursion over a tree
 		 ;; a function calling itself on each child
 		 (apply op (mapcar (lambda (sub-form) (eval-prog sub-form s))
-				   (rest form)))))
-	(return-nil () :report "Return nil" (values))))))
+				   (rest form))))))
+      (return-nil () :report "Return nil" (values)))))
 
 (defun all-sub-str-programs (n)
   "Returns all combinations of SUB-STR programs."
@@ -100,22 +100,35 @@
 	(push `(concat ,(nth i p) ,(nth j p))
 	      result)))))
 
-(defun prune-equivalent (programs examples)
+(defun prune-equivalent (programs input-examples)
   "Filters PROGRAMS using observational equivalence across EXAMPLES."
-  (loop with evald->program = (make-hash-table :test 'equal)
+  (loop with signature->program = (make-hash-table :test 'equal)
         for program in programs
-        for evald = (mapcar (curry #'eval-prog program) examples)
-        do (setf (gethash evald evald->program) program)
-        finally (return (hash-table-values evald->program))))
+	;; evaluate program against each example
+	;; this becomes the signature vector
+        for signature = (mapcar (curry #'eval-prog program) input-examples)
+	unless (some #'null signature)
+	  ;; given that programs are ranked
+	  ;; we only save the first (best by rank's definition)
+	  do (unless (gethash signature signature->program)
+	       (setf (gethash signature signature->program)
+		     program))
+        finally
+	   (return (hash-table-values signature->program))))
 
-(defun concat-and-prune (p examples)
+(defun concat-and-prune (p input-examples)
   (loop with sig->program = (make-hash-table :test 'equal)
         for a in p
         do (loop for b in p
                  for program = `(concat ,a ,b)
-                 for signature = (mapcar (curry #'eval-prog program) examples)
-		 do (setf (gethash signature sig->program) program))
-        finally (return (hash-table-values sig->program))))
+                 for signature = (mapcar (curry #'eval-prog program)
+					 input-examples)
+		 unless (some #'null signature)
+		   do (unless (gethash signature sig->program)
+			(setf (gethash signature sig->program)
+			      program)))
+        finally
+	   (return (hash-table-values sig->program))))
 
 (defun all-depth-1-programs (examples)
   (loop with string-len = (reduce #'max examples
@@ -129,29 +142,33 @@
 		     (all-split-programs input " ")
 		     (all-split-programs output " "))
 	  into programs
-	finally (return (nconc programs
-			       (all-sub-str-programs string-len)))))
+	finally
+	   (return (nconc programs
+			  (all-sub-str-programs string-len)))))
 
 (defun all-depth-2-programs (examples)
-  (let ((d1 (all-depth-1-programs examples)))
-    (prune-equivalent (nconc (all-concat-programs d1)
-			     d1)
+  (let* ((d1 (all-depth-1-programs examples))
+	 (ranked (nrank (nconc (all-concat-programs d1) d1)
+			:by #'program-size)))
+    (prune-equivalent ranked
 		      (mapcar #'car examples))))
 
-(defun all-depth-3-programs (examples)
-  (let ((d2 (all-depth-2-programs examples)))
-    (nconc d2 (concat-and-prune d2 (mapcar #'car examples)))))
+#+n(defun all-depth-3-programs (examples)
+     (let ((d2 (all-depth-2-programs examples)))
+       (nconc d2 (concat-and-prune d2 (mapcar #'car examples)))))
 
-(defun all-depth-4-programs (examples)
-  (let ((d3 (all-depth-3-programs examples)))
-    (nconc d3 (concat-and-prune d3 (mapcar #'car examples)))))
+#+n(defun all-depth-4-programs (examples)
+     (let ((d3 (all-depth-3-programs examples)))
+       (nconc d3 (concat-and-prune d3 (mapcar #'car examples)))))
 
 (defun all-depth-n-programs (n examples)
-  (let ((inputs (mapcar #'car examples)))
+  (let ((input-examples (mapcar #'car examples)))
     (loop with dn = (all-depth-2-programs examples)
 	  repeat (- n 2)
-	  do (setf dn (nconc dn (concat-and-prune dn inputs)))
-	  finally (return dn))))
+	  do (setf dn (nrank (nconc dn (concat-and-prune dn input-examples))
+			     :by #'program-size))
+	  finally
+	     (return dn))))
 
 (defun filter-correct (programs examples)
   (loop for program in programs
@@ -168,12 +185,12 @@
 	    (program-size (third program))))
 	(t 1)))
 
-(defun rank (programs &key (by #'identity))
-  (sorted programs #'< :key by))
+(defun nrank (programs &key (by #'identity))
+  (sort programs #'< :key by))
 
 (defun smallest-program (programs)
   "Follows Occam's razor criteria, where we prefer the smallest possible set."
-  (first (rank programs :by #'program-size)))
+  (first (nrank programs :by #'program-size)))
 
 (defun synthesize (examples &key (depth 3))
   (let ((search-space (all-depth-n-programs depth examples)))
