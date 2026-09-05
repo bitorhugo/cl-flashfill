@@ -6,7 +6,7 @@
 	   (format t "PASS~%")
 	   (values t))
 	  (t
-	   (format t "FAIL: ~a~%" args)))))
+	   (format t "FAIL: fn~a~%" fn)))))
 
 (defun run-grammar-tests ()
   (is #'string= "John" (sub-str "John Smith" 0 4))
@@ -109,15 +109,13 @@
       (remove-if (lambda (p)
 		   (member p (all-depth-2-programs '(("jd" . "j")))
 			   :test #'equal))
-		 '((literal "j") (literal "d") (split-idx " " 0)
-		   (concat (sub-str 0 1) (sub-str 0 1))
-		   (concat (sub-str 0 1) (sub-str 0 2))
-		   (concat (sub-str 0 1 :from-end t) (sub-str 0 1))
-		   (concat (sub-str 0 1 :from-end t) (sub-str 0 1 :from-end t))
-		   (concat (sub-str 0 1 :from-end t) (sub-str 0 2))
-		   (concat (sub-str 0 2) (sub-str 0 1))
-		   (concat (sub-str 0 2) (sub-str 0 1 :from-end t))
-		   (concat (sub-str 0 2) (sub-str 0 2)))))
+		 '((literal "d") (literal "j") (split-idx " " 0)
+		   (concat (literal "d") (literal "d")) (concat (literal "d") (literal "j"))
+		   (concat (literal "d") (split-idx " " 0)) (concat (literal "j") (literal "j"))
+		   (concat (literal "j") (split-idx " " 0))
+		   (concat (split-idx " " 0) (literal "d"))
+		   (concat (split-idx " " 0) (literal "j"))
+		   (concat (split-idx " " 0) (split-idx " " 0)))))
 
   (is #'= (length (concat-and-prune '((literal "a") (literal "b")) '("x"))) 4)
   (is #'null

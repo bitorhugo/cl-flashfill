@@ -72,6 +72,40 @@
 	(push `(sub-str ,start ,end :from-end t)
 	      result)))))
 
+(defun %sub-str-end-generator (n start)
+  (let* ((str-len n)
+	 (end (1+ start))
+	 (from-end-p nil))
+    (lambda ()
+      (unless (> end str-len)
+	(cond (from-end-p
+	       (prog1
+		   `(sub-str ,start ,end :from-end t)
+		 (incf end)
+		 (setf from-end-p nil)))
+	      (t
+	       (prog1
+		   `(sub-str ,start ,end)
+		 (setf from-end-p t))))))))
+
+(defun %sub-str-start-generator (n)
+  (let* ((str-len n)
+	 (start 0)
+	 (end-gen (%sub-str-end-generator str-len start)))
+    (lambda ()
+      (unless (> start (1- str-len))
+	(let ((next (funcall end-gen)))
+	  (cond ((null next)
+		 (incf start)
+		 (setf end-gen
+		       (%sub-str-end-generator str-len start))
+		 (funcall end-gen))
+		(t
+		 next)))))))
+
+(defun sub-str-generator (n)
+  (%sub-str-start-generator n))
+
 (defun %all-literal-programs (s &optional acc)
   "Helper function of ALL-LITERAL-PROGRAMS."
   (let ((len (length s)))
@@ -99,6 +133,36 @@
       (dotimes (j (length p))
 	(push `(concat ,(nth i p) ,(nth j p))
 	      result)))))
+
+
+(defun %concat-j-generator (i programs)
+  (let ((n (1- (length programs)))
+	(j 0))
+    (lambda ()
+      (unless (> j n)
+	(prog1
+	    `(concat ,(aref programs i) ,(aref programs j))
+	  (incf j))))))
+
+(defun %concat-generator (programs)
+  (let* ((n (1- (length programs)))
+	 (i 0)
+	 (j-gen (%concat-j-generator i programs)))
+    (lambda ()
+      (let ((next (funcall j-gen)))
+	(cond ((null next)
+	       (when (< i n)
+		 (incf i)
+		 (setf j-gen (%concat-j-generator i programs))
+		 (funcall j-gen)))
+	      (t
+	       next))))))
+
+(defun concat-generator (programs)
+  ;; use arrays for O(1) indexing
+  ;;
+  (let ((p (make-array (length programs) :initial-contents programs)))
+    (%concat-generator p)))
 
 (defun prune-equivalent (programs input-examples)
   "Filters PROGRAMS using observational equivalence across EXAMPLES."
@@ -146,25 +210,68 @@
 	       (add-all (all-split-programs output " ")))
       ;; we need to only take into consideration the longest
       ;;
-      (add-all (all-sub-str-programs max-len))
+      (loop with gen = (sub-str-generator max-len)
+	    for next = (funcall gen)
+	    while next
+	    do (setf (gethash next seen) t))
       ;; return unique keys
       ;;
       (loop for p being the hash-keys of seen
 	    collect p))))
 
+(defun relevant-p (signature outputs)
+  (every (lambda (signature output)
+	   (search signature output :test #'string=))
+	 signature outputs))
+
+(defun concat-extend (programs inputs outputs)
+  "Extends PROGRAMS with CONCAT combinations of themselves, pruned by
+observational equivalence against INPUT-EXAMPLES. A PROGRAMS member
+or a generated CONCAT only replaces the current signature holder when
+it is strictly smaller, so smaller programs always win a tie."
+  (let ((signature->program (make-hash-table :test 'equal :size 100000)))
+    ;; seed signature->program with PROGRAMS, keeping the smallest
+    ;; per signature; no sort needed since ties are broken by an
+    ;; explicit size comparison rather than visit order
+    ;;
+    (loop for program in programs
+          for signature = (mapcar (curry #'eval-prog program) inputs)
+	  unless (some #'null signature)
+	    do (when (or (null (gethash signature signature->program))
+			 (< (program-size program)
+			    (program-size (gethash signature signature->program))))
+		 (setf (gethash signature signature->program) program)))
+    ;; lazy generate concat programs and rank them by program size
+    ;;
+    (loop with gen = (concat-generator programs)
+	  for program = (funcall gen)
+	  while program
+	  for signature = (mapcar (curry #'eval-prog program) inputs)
+	  unless (some #'null signature)
+	    do (when (and (relevant-p signature outputs)
+			  (or (null (gethash signature signature->program))
+			      (< (program-size program)
+				 (program-size (gethash signature signature->program)))))
+		 (setf (gethash signature signature->program)
+		       program)))
+    ;; finally return the programs
+    ;;
+    (loop for k being the hash-values of signature->program
+	  collect k)))
+
 (defun all-depth-2-programs (examples)
-  (let* ((d1 (all-depth-1-programs examples))
-	 (ranked (nrank (nconc (all-concat-programs d1) d1)
-			:by #'program-size)))
-    (prune-equivalent ranked
-		      (mapcar #'car examples))))
+  (let ((inputs (mapcar #'car examples))
+	(outputs (mapcar #'cdr examples)))
+    (concat-extend (all-depth-1-programs examples)
+		   inputs
+		   outputs)))
 
 (defun all-depth-n-programs (n examples)
-  (let ((input-examples (mapcar #'car examples)))
+  (let ((inputs (mapcar #'car examples))
+	(outputs (mapcar #'cdr examples)))
     (loop with dn = (all-depth-2-programs examples)
 	  repeat (- n 2)
-	  do (setf dn (nrank (nconc dn (concat-and-prune dn input-examples))
-			     :by #'program-size))
+	  do (setf dn (concat-extend dn inputs outputs))
 	  finally
 	     (return dn))))
 
@@ -177,11 +284,14 @@
 	  collect program))
 
 (defun program-size (program)
-  (cond ((eql (first program) 'concat)
-	 (+ 1
-	    (program-size (second program))
-	    (program-size (third program))))
-	(t 1)))
+  (let ((p (first program)))
+    (cond ((eql p 'concat)
+	   (+ 4
+	      (program-size (second program))
+	      (program-size (third program))))
+	  ((eql p 'sub-str) 3)
+	  ((eql p 'split-idx) 2)
+	  (t 1))))
 
 (defun nrank (programs &key (by #'identity))
   (sort programs #'< :key by))
@@ -189,7 +299,6 @@
 (defun smallest-program (programs)
   "Follows Occam's razor criteria, where we prefer the smallest possible set."
   (first (nrank programs :by #'program-size)))
-
 
 (defun synthesize (examples &key (depth 3))
   (let ((search-space (all-depth-n-programs depth examples)))
