@@ -21,7 +21,17 @@ synthesizes:
 i.e. "take the first letter, add '. ', append the second word" — found at
 depth 3 in under a tenth of a second.
 
+```lisp
+(synthesize '(("jane@acme.com" . "acme.com")
+	      ("bob@widgets.io" . "widgets.io")))
+```
+
+synthesizes:
+
+```lisp
+(SPLIT-IDX "@" 1)
+```
+
 ## License
 
 MIT
-

@@ -4,6 +4,8 @@
 ;; Grammar
 ;;
 
+;; Note:
+;; Sub-str needs to be updated such that it accepts relative positions
 (defun sub-str (s start end &key from-end)
   "Returns a sub-string of S between START and END;"
   (if from-end
@@ -207,7 +209,9 @@
 	    do (add-all (all-literal-programs input))
 	       (add-all (all-literal-programs output))
 	       (add-all (all-split-programs input " "))
-	       (add-all (all-split-programs output " ")))
+	       (add-all (all-split-programs output " "))
+	       (add-all (all-split-programs input "@"))
+	       (add-all (all-split-programs output "@")))
       ;; we need to only take into consideration the longest
       ;;
       (loop with gen = (sub-str-generator max-len)
