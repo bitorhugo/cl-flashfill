@@ -32,6 +32,20 @@ synthesizes:
 (SPLIT-IDX "@" 1)
 ```
 
+```lisp
+(synthesize '(("Camila Mino" . "Mino Camila")
+	      ("John Smith" . "Smith John")
+	      ("Hugo Santos" . "Santos Hugo")))
+```
+
+synthesizes:
+
+```lisp
+(CONCAT (SPLIT-IDX " " 1)
+        (CONCAT (LITERAL " ")
+                (SPLIT-IDX " " 0)))
+```
+
 ## License
 
 MIT
