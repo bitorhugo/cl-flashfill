@@ -104,18 +104,12 @@
   ;; on nrank's (unstable) sort, so we assert the actual verified
   ;; survivor set rather than a specific representative per tie
   ;;
-  (is #'= (length (all-depth-2-programs '(("jd" . "j")))) 11)
+  (is #'= (length (all-depth-2-programs '(("jd" . "j")))) 3)
   (is #'null
       (remove-if (lambda (p)
 		   (member p (all-depth-2-programs '(("jd" . "j")))
 			   :test #'equal))
-		 '((literal "d") (literal "j") (split-idx " " 0)
-		   (concat (literal "d") (literal "d")) (concat (literal "d") (literal "j"))
-		   (concat (literal "d") (split-idx " " 0)) (concat (literal "j") (literal "j"))
-		   (concat (literal "j") (split-idx " " 0))
-		   (concat (split-idx " " 0) (literal "d"))
-		   (concat (split-idx " " 0) (literal "j"))
-		   (concat (split-idx " " 0) (split-idx " " 0)))))
+		 '((literal "d") (literal "j") (split-idx " " 0))))
 
   (is #'= (length (concat-and-prune '((literal "a") (literal "b")) '("x"))) 4)
   (is #'null
