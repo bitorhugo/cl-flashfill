@@ -1,0 +1,85 @@
+# cl-flashfill
+* Vitor Santos <vhsoo at proton dot me>
+
+This is a project to do ... something.
+
+** Grammar
+
+What is described below are *grammar productions*, and together they form a grammar (or DSL).
+Every program written is some composition of these, nothing else.
+This is what makes search over programs easy to follow later.
+
+*** literal
+Returns whatever string it received. Some sort of identity definition.
+#+begin_src lisp
+  (literal "a")
+  > "a"
+#+end_src
+
+*** sub-str
+Returns a piece of the string received. Works front-to-back and vice-versa.
+#+begin_src lisp
+  (sub-str "Jane Doe" 0 4)
+  > "Jane"
+  (sub-str "Jane Doe" 0 3 :from-end t)
+  > "Doe"
+#+end_src
+
+*** split-idx
+Returns the nth piece of a delimited string.
+#+begin_src lisp
+  (split-idx "Jane Doe" " " 0)
+  > "Jane"
+  (split-idx "Jane Doe" " " 1)
+  > "Doe"
+#+end_src
+
+*** concat
+Returns the composition of string.
+#+begin_src lisp
+  (concat "Jane" "Doe")
+  > "Jane Doe"
+#+end_src
+
+** Demo
+
+#+begin_src lisp
+(synthesize '(("Camila Mino" . "C. Mino")
+              ("John Smith" . "J. Smith")
+              ("Hugo Santos" . "H. Santos")))
+#+end_src
+
+synthesizes:
+
+#+begin_src lisp
+(CONCAT (CONCAT (SUB-STR 0 1) (LITERAL "."))
+        (CONCAT (LITERAL " ") (SPLIT-IDX " " 1)))
+#+end_src
+
+i.e. "take the first letter, add '. ', append the second word" — found at
+depth 3 in under a tenth of a second.
+
+#+begin_src lisp
+(synthesize '(("jane@acme.com" . "acme.com")
+	      ("bob@widgets.io" . "widgets.io")))
+#+end_src
+
+synthesizes:
+
+#+begin_src lisp
+(SPLIT-IDX "@" 1)
+#+end_src
+
+#+begin_src lisp
+(synthesize '(("Camila Mino" . "Mino Camila")
+	      ("John Smith" . "Smith John")
+	      ("Hugo Santos" . "Santos Hugo")))
+#+end_src
+
+synthesizes:
+
+#+begin_src lisp
+(CONCAT (SPLIT-IDX " " 1)
+        (CONCAT (LITERAL " ")
+                (SPLIT-IDX " " 0)))
+#+end_src
