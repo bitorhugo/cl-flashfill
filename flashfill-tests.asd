@@ -10,4 +10,5 @@
   :pathname "tests"
   :components ((:file "utils")
 	       (:file "grammar")
+	       (:file "generation")
 	       (:file "algorithms")))
