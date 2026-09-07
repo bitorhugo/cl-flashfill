@@ -1,31 +1,5 @@
-(in-package :cl-flashfill)
+;;;; SPDX-License-Identifier: MIT
 
-(defun is (fn &rest args)
-  (let ((success-p (apply fn args)))
-    (cond (success-p
-	   (format t "PASS~%")
-	   (values t))
-	  (t
-	   (format t "FAIL: fn~a~%" fn)))))
-
-(defun run-grammar-tests ()
-  (is #'string= "John" (sub-str "John Smith" 0 4))
-
-  (is #'string= "John" (sub-str "John Smith" 6 10 :from-end t))
-
-  (is #'string= "J. Smith" (concat (sub-str "John Smith" 0 1)
-				   (literal ".")
-				   (literal " ") ; we could use sub-str starting from 4
-				   (sub-str "John Smith" 5 10)))
-
-  (is #'string= "J. Doe" (concat (sub-str "Jane Doe" 0 1)
-				 (literal ".")
-				 (literal " ")
-				 (sub-str "Jane Doe" 5 8)))
-
-  (is #'equal (list "John" "Smith") (split "John Smith" " "))
-
-  (is #'string=  "John" (split-idx "John Smith" " " 0)))
 
 (defun run-eval-tests ()
   (is #'string=  "Smith" (eval-prog '(split-idx " " 1) "John Smith"))
