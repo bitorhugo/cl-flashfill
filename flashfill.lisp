@@ -241,9 +241,10 @@ it is strictly smaller, so smaller programs always win a tie."
     (loop for program in programs
           for signature = (mapcar (curry #'eval-prog program) inputs)
 	  unless (some #'null signature)
-	    do (when (or (null (gethash signature signature->program))
-			 (< (program-size program)
-			    (program-size (gethash signature signature->program))))
+	    do (when (and (relevant-p signature outputs)
+			  (or (null (gethash signature signature->program))
+			      (< (program-size program)
+				 (program-size (gethash signature signature->program)))))
 		 (setf (gethash signature signature->program) program)))
     ;; lazy generate concat programs and rank them by program size
     ;;
