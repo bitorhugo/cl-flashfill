@@ -9,7 +9,8 @@
   :serial t
   :pathname "tests"
   :perform (test-op (op c)
-		    (symbol-call :flashfill '#:run-tests))
+		    (unless (symbol-call :flashfill '#:run-tests)
+		      (error "Tests Failed.")))
   :components ((:file "utils")
 	       (:file "grammar")
 	       (:file "generation")
