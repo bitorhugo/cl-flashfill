@@ -1,4 +1,6 @@
-(in-package :cl-flashfill)
+;;;; SPDX-License-Identifier: MIT
+
+(in-package #:flashfill)
 
 (defun curry (function &rest args)
   #'(lambda (&rest more-args)
@@ -52,3 +54,6 @@
 (defun sorted (sequence predicate &key key)
   (let ((clone (copy-seq sequence)))
     (sort clone predicate :key key)))
+
+(defun nrank (programs &key (by #'identity))
+  (sort programs #'< :key by))
