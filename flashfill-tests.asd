@@ -1,10 +1,12 @@
 ;;;; SPDX-License-Identifier: MIT
 
 (asdf:defsystem #:flashfill-tests
-  :description "Flashfill in Common Lisp"
+  :description "Tests for Flashfill"
   :author "Vitor Santos <vhsoo at proton dot me>"
   :license  "MIT"
   :version "0.0.1"
+  :depends-on (:flashfill)
   :serial t
-  :pathname "src"
-  :components ())
+  :pathname "tests"
+  :components ((:file "utils")
+	       (:file "grammar")))

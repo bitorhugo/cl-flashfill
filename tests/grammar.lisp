@@ -1,6 +1,6 @@
 ;;;; SPDX-License-Identifier: MIT
 
-(in-package :flashfill)
+(in-package #:flashfill)
 
 (deftest test-literal ()
   "Tests `literal' programs."
