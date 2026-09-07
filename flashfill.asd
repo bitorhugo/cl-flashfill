@@ -10,6 +10,7 @@
   :in-order-to ((test-op (test-op "flashfill-tests")))
   :components ((:file "package")
                (:file "utils")
+	       (:file "logging")
 	       (:file "grammar")
 	       (:file "generation")
 	       (:file "algorithms")))
