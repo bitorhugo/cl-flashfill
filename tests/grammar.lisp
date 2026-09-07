@@ -48,6 +48,21 @@
 			     (concat (literal "i") (literal "c"))))
 	     "magic")))
 
+(deftest test-eval-prog ()
+  "Tests `eval-prog' programs."
+  (check
+    ;; literal
+    ;;
+    (string= (eval-prog '(literal "a") "") "a")
+    ;;sub-str
+    ;;
+    (string= (eval-prog '(sub-str 0 3) "Jane Doe") "Jan")
+    (string= (eval-prog '(sub-str 0 3 :from-end t) "Jane Doe") "Doe")
+    ;; split-idx
+    (string= (eval-prog '(split-idx (literal "@") 0) "foo@bar") "foo")
+    ;; concat
+    (string= (eval-prog '(concat (literal "a") (literal "b")) "") "ab")))
+
 (deftest test-grammar ()
   "Tests grammar programs."
   (combine-results

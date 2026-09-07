@@ -1,19 +1,6 @@
 ;;;; SPDX-License-Identifier: MIT
 
 
-(defun run-eval-tests ()
-  (is #'string=  "Smith" (eval-prog '(split-idx " " 1) "John Smith"))
-
-  (is #'string= "John" (eval-prog '(sub-str 0 4) "John Smith"))
-
-  (is #'string= "!" (eval-prog '(literal "!")
-			       "John Smith"))
-  (is #'string= "J. Smith" (eval-prog '(concat (sub-str 0 1)
-					(literal ".")
-					(literal " ")
-					(sub-str 5 10))
-				      "John Smith")))
-
 (defun run-search-tests ()
   (is #'<
       (length (prune-equivalent (all-depth-1-programs '(("ab" . "")))
