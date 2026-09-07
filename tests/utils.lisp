@@ -32,3 +32,10 @@
   "Report the results of a single test case. Called by 'check'."
   (format t "~:[FAIL~;pass~] ... ~a: ~a~%" result *test-name* form)
   result)
+
+(defun run-tests ()
+  "Runs all tests."
+  (combine-results
+    (test-grammar)
+    (test-generation)
+    (test-algorithms)))

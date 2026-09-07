@@ -8,6 +8,8 @@
   :depends-on (:flashfill)
   :serial t
   :pathname "tests"
+  :perform (test-op (op c)
+		    (symbol-call :flashfill '#:run-tests))
   :components ((:file "utils")
 	       (:file "grammar")
 	       (:file "generation")
