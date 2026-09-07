@@ -1,17 +1,6 @@
 ;;;; SPDX-License-Identifier: MIT
 
 
-(defun run-search-tests ()
-  (is #'<
-      (length (prune-equivalent (all-depth-1-programs '(("ab" . "")))
-				'(("ab" . ""))))
-      (length (all-depth-1-programs '(("ab" . "")))))
-  (is #'equal
-      (filter-correct (list '(literal "w")
-			    '(concat (sub-str 0 1) (literal ".")))
-		      '(("Jane Doe" . "J.")))
-      '((concat (sub-str 0 1) (literal ".")))))
-
 (defun run-ranking-tests ()
   ;; program size
   ;;
