@@ -9,4 +9,5 @@
   :serial t
   :pathname "tests"
   :components ((:file "utils")
-	       (:file "grammar")))
+	       (:file "grammar")
+	       (:file "algorithms")))

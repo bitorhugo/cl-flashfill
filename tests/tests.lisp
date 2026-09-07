@@ -1,32 +1,6 @@
 ;;;; SPDX-License-Identifier: MIT
 
 
-(defun run-ranking-tests ()
-  ;; program size
-  ;;
-  (is #'= (program-size '(literal "J")) 1)
-  (is #'= (program-size '(sub-str "Jane" 0 0)) 1)
-  (is #'= (program-size '(split "Doe" "o")) 1)
-  (is #'= (program-size '(split-idx "Jane Doe" " " 0)) 1)
-  (is #'= (program-size '(concat (literal "J") (literal "."))) 3)
-  ;; rank
-  ;;
-  (is #'equal
-      (nrank '((literal "l")) :by #'program-size)
-      '((literal "l")))
-  (is #'equal
-      (nrank '((concat (literal "j") (literal ".")) (literal "l")) :by #'program-size)
-      '((literal "l") (concat (literal "j") (literal "."))))
-  ;; smallest-program
-  ;;
-  (is #'equal
-      (smallest-program '((concat (literal "j") (literal ".")) (literal "l")))
-      '(literal "l"))
-  (is #'equal
-      (smallest-program '((concat (literal "j") (literal "."))
-			  (concat (concat (literal "d") (literal "f")) (literal "."))))
-      '(concat (literal "j") (literal "."))))
-
 (defun run-enumeration-tests ()
   (is #'equal
       (all-literal-programs "Jane")
@@ -82,11 +56,3 @@
       (synthesize '(("Jane" . "J.")
 		    ("Hugo" . "H.")))
       "Jane"))
-
-(defun run-tests ()
-  (run-grammar-tests)
-  (run-eval-tests)
-  (run-search-tests)
-  (run-ranking-tests)
-  (run-enumeration-tests)
-  (run-synthesis-tests))
