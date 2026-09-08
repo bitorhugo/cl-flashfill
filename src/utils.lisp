@@ -57,3 +57,6 @@
 
 (defun nrank (programs &key (by #'identity))
   (sort programs #'< :key by))
+
+(defun log.it (remaining total)
+  (format t "Total:~a~%Remai:~a~%" total remaining))

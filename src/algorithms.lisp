@@ -53,7 +53,13 @@
 
 ;;;; synthesize
 
+
 (defun synthesize (examples &key (depth 3))
   "Synthesizes programs from EXAMPLES."
-  (let ((search-space (all-programs depth examples)))
-    (smallest-program (filter-correct search-space examples))))
+  (tracking-progress
+      (let ((search-space (all-programs depth examples)))
+	(smallest-program (filter-correct search-space examples)))
+    (:log-obs-eq (winners total)
+		 (log.it winners total))
+    (:log-depth (curr)
+		(format t "~%Depth:~a~%" curr))))

@@ -124,7 +124,8 @@
 observational equivalence against INPUT-EXAMPLES. A PROGRAMS member
 or a generated CONCAT only replaces the current signature holder when
 it is strictly smaller, so smaller programs always win a tie."
-  (let ((signature->program (make-hash-table :test 'equal :size 100000)))
+  (let ((signature->program (make-hash-table :test 'equal :size 100000))
+	(gen-count (length programs)))
     ;; seed signature->program with PROGRAMS, keeping the smallest
     ;; per signature; no sort needed since ties are broken by an
     ;; explicit size comparison rather than visit order
@@ -141,6 +142,7 @@ it is strictly smaller, so smaller programs always win a tie."
     ;;
     (loop with gen = (concat-generator programs)
 	  for program = (funcall gen)
+	  for _ = (incf gen-count)
 	  while program
 	  for signature = (mapcar (curry #'eval-prog program) inputs)
 	  unless (some #'null signature)
@@ -149,8 +151,10 @@ it is strictly smaller, so smaller programs always win a tie."
 			      (< (program-size program)
 				 (program-size (gethash signature signature->program)))))
 		 (setf (gethash signature signature->program)
-		       program)))
-    ;; finally return the programs
+		       program))
+	  finally
+	     (report-progress :log-obs-eq (hash-table-count signature->program) gen-count))
+    ;; return the programs
     ;;
     (loop for k being the hash-values of signature->program
 	  collect k)))
@@ -160,6 +164,8 @@ it is strictly smaller, so smaller programs always win a tie."
   (let ((inputs (mapcar #'car examples))
 	(outputs (mapcar #'cdr examples)))
     (loop with dn = (concat-extend (seed-programs examples) inputs outputs)
-	  repeat (- n 2)
-	  do (setf dn (concat-extend dn inputs outputs))
+	  with count = 1
+	  until (= count n)
+	  do (report-progress :log-depth (incf count))
+	     (setf dn (concat-extend dn inputs outputs))
 	  finally (return dn))))
