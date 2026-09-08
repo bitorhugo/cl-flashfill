@@ -41,45 +41,77 @@ Returns the composition of string.
   > "Jane Doe"
 #+end_src
 
+
+** Search & Pruning
+
+Search is enumerative and proceeds depth by depth. Depth 1 is every grammar
+production applied directly to the input (every =literal=, every =sub-str=,
+every =split-idx=); depth 2 is every =concat= of two depth-1 programs; each
+later depth extends the previous tier by one more =concat=. At every depth
+the search generates candidate programs, evaluates each one on all the
+example inputs, and checks whether its outputs match the example outputs.
+If a candidate's outputs match, it's a solution, and the *smallest* one found
+(by program-tree size) is returned.
+
+The reason this doesn't blow up combinatorially is *observational-equivalence*
+pruning. Two candidate programs that produce the exact same output on every
+example are, for search purposes, equivalent. Whichever one gets built
+next can only ever compose with either program to the same effect, so only
+the smaller of the two needs to be kept. Candidates are grouped by their
+output signature (the tuple of outputs across all examples), and within each
+group only the smallest surviving program is retained; everything else is
+discarded before it's given the chance to spawn further candidates at the
+next depth.
+
+Run against the email-domain example (=("jane@acme.com" . "acme.com")=,
+=("bob@widgets.io" . "widgets.io")=), the raw number of candidates considered
+keeps climbing with depth - 70,491 at depth 1, 72,631 at depth 2, 98,911 at
+depth 3 - while the number that survive pruning stays essentially flat: 269,
+314, 315. Without pruning, each depth's candidate pool would be built out of
+every survivor from the depth before, compounding the raw growth instead of
+resetting it back down to a few hundred - that flatness is what keeps depths
+4 and 5 tractable on a laptop instead of exhausting memory.
+
+#+begin_src lisp
+  (synthesize '(("jane@acme.com" . "acme.com")
+                ("bob@widgets.io" . "widgets.io"))
+              :depth 3)
+  > Total:70491
+  > Remai:269
+  >
+  > Depth:2
+  > Total:72631
+  > Remai:314
+  >
+  > Depth:3
+  > Total:98911
+  > Remai:315
+#+end_src
+
 ** Demo
 
 #+begin_src lisp
-(synthesize '(("Camila Mino" . "C. Mino")
-              ("John Smith" . "J. Smith")
-              ("Hugo Santos" . "H. Santos")))
-#+end_src
-
-synthesizes:
-
-#+begin_src lisp
-(CONCAT (CONCAT (SUB-STR 0 1) (LITERAL "."))
-        (CONCAT (LITERAL " ") (SPLIT-IDX " " 1)))
+  (synthesize '(("Camila Mino" . "C. Mino")
+                ("John Smith" . "J. Smith")
+                ("Hugo Santos" . "H. Santos")))
+  > (CONCAT (CONCAT (SUB-STR 0 1) (LITERAL "."))
+  	  (CONCAT (LITERAL " ") (SPLIT-IDX " " 1)))
 #+end_src
 
 i.e. "take the first letter, add '. ', append the second word" — found at
 depth 3 in under a tenth of a second.
 
 #+begin_src lisp
-(synthesize '(("jane@acme.com" . "acme.com")
-	      ("bob@widgets.io" . "widgets.io")))
-#+end_src
-
-synthesizes:
-
-#+begin_src lisp
-(SPLIT-IDX "@" 1)
+  (synthesize '(("jane@acme.com" . "acme.com")
+  	      ("bob@widgets.io" . "widgets.io")))
+  > (SPLIT-IDX "@" 1)
 #+end_src
 
 #+begin_src lisp
-(synthesize '(("Camila Mino" . "Mino Camila")
-	      ("John Smith" . "Smith John")
-	      ("Hugo Santos" . "Santos Hugo")))
-#+end_src
-
-synthesizes:
-
-#+begin_src lisp
-(CONCAT (SPLIT-IDX " " 1)
-        (CONCAT (LITERAL " ")
-                (SPLIT-IDX " " 0)))
+  (synthesize '(("Camila Mino" . "Mino Camila")
+  	      ("John Smith" . "Smith John")
+  	      ("Hugo Santos" . "Santos Hugo")))
+  > (CONCAT (SPLIT-IDX " " 1)
+  	  (CONCAT (LITERAL " ")
+  		  (SPLIT-IDX " " 0)))
 #+end_src
