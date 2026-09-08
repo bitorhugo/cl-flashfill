@@ -4,7 +4,7 @@
   :description "Tests for Flashfill"
   :author "Vitor Santos <vhsoo at proton dot me>"
   :license  "MIT"
-  :version "0.0.1"
+  :version "1.0.0"
   :depends-on (:flashfill)
   :serial t
   :pathname "tests"
