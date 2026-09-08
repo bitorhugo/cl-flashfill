@@ -58,5 +58,9 @@
 (defun nrank (programs &key (by #'identity))
   (sort programs #'< :key by))
 
+(defmacro with-gensyms ((&rest names) &body body)
+  `(let ,(loop for n in names collect `(,n (gensym)))
+     ,@body))
+
 (defun log.it (remaining total)
   (format t "Total:~a~%Remai:~a~%" total remaining))
